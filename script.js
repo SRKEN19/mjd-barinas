@@ -1,19 +1,61 @@
-// Navegación responsive
+// Navegación responsive con accesibilidad mejorada
 const hamburger = document.querySelector('.hamburger');
 const navMenu = document.querySelector('.nav-menu');
 
-hamburger.addEventListener('click', () => {
-    hamburger.classList.toggle('active');
+function toggleMenu() {
+    const isActive = hamburger.classList.toggle('active');
     navMenu.classList.toggle('active');
-});
+
+    // Actualizar atributos ARIA
+    hamburger.setAttribute('aria-expanded', isActive);
+    navMenu.setAttribute('aria-hidden', !isActive);
+
+    // Manejar foco
+    if (isActive) {
+        // Enfocar el primer enlace del menú
+        const firstLink = navMenu.querySelector('a');
+        if (firstLink) firstLink.focus();
+    }
+}
+
+hamburger.addEventListener('click', toggleMenu);
 
 // Cerrar menú al hacer click en un enlace
 document.querySelectorAll('.nav-menu a').forEach(link => {
     link.addEventListener('click', () => {
         hamburger.classList.remove('active');
         navMenu.classList.remove('active');
+        hamburger.setAttribute('aria-expanded', 'false');
+        navMenu.setAttribute('aria-hidden', 'true');
     });
 });
+
+// Cerrar menú con tecla Escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && navMenu.classList.contains('active')) {
+        hamburger.classList.remove('active');
+        navMenu.classList.remove('active');
+        hamburger.setAttribute('aria-expanded', 'false');
+        navMenu.setAttribute('aria-hidden', 'true');
+        hamburger.focus(); // Devolver foco al botón hamburguesa
+    }
+});
+
+// Cerrar menú al hacer click fuera
+document.addEventListener('click', (e) => {
+    if (!hamburger.contains(e.target) && !navMenu.contains(e.target) && navMenu.classList.contains('active')) {
+        hamburger.classList.remove('active');
+        navMenu.classList.remove('active');
+        hamburger.setAttribute('aria-expanded', 'false');
+        navMenu.setAttribute('aria-hidden', 'true');
+    }
+});
+
+// Inicializar atributos ARIA
+hamburger.setAttribute('aria-expanded', 'false');
+hamburger.setAttribute('aria-label', 'Abrir menú de navegación');
+navMenu.setAttribute('aria-hidden', 'true');
+navMenu.setAttribute('role', 'navigation');
 
 // Navbar scroll effect
 const navbar = document.querySelector('.navbar');
@@ -28,118 +70,129 @@ window.addEventListener('scroll', () => {
     }
 });
 
-// Animación al hacer scroll
-const observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -50px 0px'
-};
-
-const observer = new IntersectionObserver((entries) => {
+const scrollObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
         if (entry.isIntersecting) {
-            entry.target.style.opacity = '1';
-            entry.target.style.transform = 'translateY(0)';
+            entry.target.classList.add('visible');
+            scrollObserver.unobserve(entry.target);
         }
     });
-}, observerOptions);
-
-// Observar elementos para animar
-document.querySelectorAll('.about-card, .timeline-item, .contact-card').forEach(el => {
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(30px)';
-    el.style.transition = 'all 0.6s ease';
-    observer.observe(el);
+}, {
+    threshold: 0.15,
+    rootMargin: '0px 0px -50px 0px'
 });
+
+const scrollAnimatedElements = document.querySelectorAll('.animate-on-scroll');
+scrollAnimatedElements.forEach(el => scrollObserver.observe(el));
 
 // Smooth scroll para el scroll indicator
 document.querySelector('.scroll-indicator').addEventListener('click', () => {
     document.querySelector('#nosotros').scrollIntoView({ behavior: 'smooth' });
 });
 
-// Manejo del formulario con Formspree
-// El formulario se envía normalmente a Formspree. No se usa preventDefault.
-// Si deseas agregar una animación al botón antes de enviar, puedes hacerlo aquí.
-const joinForm = document.getElementById('joinForm');
+// Modo neón / normal
+const neonToggle = document.getElementById('neonToggle');
 
-joinForm.addEventListener('submit', () => {
-    const btn = joinForm.querySelector('button[type="submit"]');
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
-    btn.disabled = true;
-    // El navegador continúa con el envío POST a Formspree
-});
-
-// Efecto parallax sutil en el hero
-window.addEventListener('scroll', () => {
-    const scrolled = window.pageYOffset;
-    const hero = document.querySelector('.hero');
-    
-    if (hero) {
-        hero.style.backgroundPositionY = scrolled * 0.5 + 'px';
-    }
-});
-
-// Animación de contador para números (si se agregan estadísticas)
-function animateCounter(el, target, duration = 2000) {
-    let start = 0;
-    const increment = target / (duration / 16);
-    
-    function updateCounter() {
-        start += increment;
-        if (start < target) {
-            el.textContent = Math.floor(start);
-            requestAnimationFrame(updateCounter);
-        } else {
-            el.textContent = target;
-        }
-    }
-    
-    updateCounter();
+if (neonToggle) {
+    neonToggle.addEventListener('click', () => {
+        const isNeon = document.body.classList.toggle('neon-mode');
+        neonToggle.innerHTML = isNeon
+            ? '<i class="fas fa-sun"></i> modo normal'
+            : '<i class="fas fa-lightbulb"></i> modo neón';
+        neonToggle.setAttribute('aria-pressed', isNeon);
+    });
 }
 
-// Animación de partículas de fuego en el hero (efecto visual opcional)
+// Manejo del formulario con Formspree
+// El formulario se envía mediante AJAX para mostrar un modal en lugar de redirigir.
+const joinForm = document.getElementById('joinForm');
+const formModal = document.getElementById('formModal');
+const modalCloseX = document.querySelector('.modal-close');
+const inputs = document.querySelectorAll('.form-group input, .form-group textarea');
+
+function closeModal() {
+    if (!formModal) return;
+    formModal.classList.remove('show');
+    setTimeout(() => {
+        formModal.classList.add('hidden');
+    }, 500);
+}
+
+function openModal() {
+    if (!formModal) return;
+    formModal.classList.remove('hidden');
+    formModal.classList.add('show');
+}
+
+if (modalCloseX) {
+    modalCloseX.addEventListener('click', closeModal);
+}
+
+if (joinForm) {
+    joinForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const btn = joinForm.querySelector('button[type="submit"]');
+
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+            btn.disabled = true;
+        }
+
+        const formData = new FormData(joinForm);
+
+        try {
+            const response = await fetch(joinForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                joinForm.reset();
+                openModal();
+            } else {
+                throw new Error('No se pudo enviar la solicitud.');
+            }
+        } catch (error) {
+            alert('Hubo un problema al enviar tu solicitud. Por favor intenta de nuevo.');
+        } finally {
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar solicitud';
+                btn.disabled = false;
+            }
+        }
+    });
+}
+
+// Animación de partículas de fuego en el hero (efecto visual sutil)
 function createFireParticle() {
     const hero = document.querySelector('.hero');
-    const particle = document.createElement('div');
+    if (!hero) return;
     
+    const particle = document.createElement('div');
     particle.style.cssText = `
         position: absolute;
-        width: ${Math.random() * 4 + 2}px;
-        height: ${Math.random() * 4 + 2}px;
+        width: ${Math.random() * 3 + 1}px;
+        height: ${Math.random() * 3 + 1}px;
         background: ${['#e85d04', '#d00000', '#ffba08', '#ff8500'][Math.floor(Math.random() * 4)]};
         border-radius: 50%;
         left: ${Math.random() * 100}%;
         bottom: 0;
-        opacity: ${Math.random() * 0.5 + 0.2};
+        opacity: ${Math.random() * 0.4 + 0.2};
         pointer-events: none;
-        animation: fireUp ${Math.random() * 3 + 2}s linear forwards;
+        animation: fireUp ${Math.random() * 4 + 3}s linear forwards;
+        z-index: 1;
     `;
     
     hero.appendChild(particle);
     
-    setTimeout(() => particle.remove(), 5000);
+    setTimeout(() => particle.remove(), 7000);
 }
 
 // Crear partículas de fuego periódicamente
-setInterval(createFireParticle, 300);
-
-// Agregar keyframes para las partículas de fuego dinámicamente
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes fireUp {
-        0% {
-            transform: translateY(0) scale(1);
-            opacity: 0.6;
-        }
-        100% {
-            transform: translateY(-100vh) scale(0.3);
-            opacity: 0;
-        }
-    }
-`;
-document.head.appendChild(style);
-
-// Validación del formulario en tiempo real
-const inputs = joinForm.querySelectorAll('input, textarea');
+setInterval(createFireParticle, 400);
 
 inputs.forEach(input => {
     input.addEventListener('blur', () => {
